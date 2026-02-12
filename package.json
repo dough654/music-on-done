@@ -1,0 +1,42 @@
+{
+  "name": "music-on-done",
+  "version": "1.0.0",
+  "description": "Claude Code hook that plays a random clip from a YouTube Music playlist on notifications",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "music-on-done": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/ test/",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "hook",
+    "notification",
+    "music",
+    "youtube",
+    "yt-dlp",
+    "mpv"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist"
+  ]
+}
