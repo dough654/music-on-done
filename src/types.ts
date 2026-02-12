@@ -16,6 +16,7 @@ export type Config = {
   minDuration: number;
   maxDuration: number;
   cacheTtlMinutes: number;
+  volume: number;
 };
 
 export type StreamCacheEntry = {
@@ -28,4 +29,20 @@ export type StreamCacheEntry = {
 export type StreamCache = {
   entries: StreamCacheEntry[];
   playlistUrl: string;
+};
+
+export type ProjectConfigOverrides = {
+  playlistUrl?: string;
+  minDuration?: number;
+  maxDuration?: number;
+  cacheTtlMinutes?: number;
+  volume?: number;
+};
+
+export type ProjectsConfigFile = Record<string, ProjectConfigOverrides>;
+
+export type CachePaths = {
+  cacheDir: string;
+  playlistCacheFile: string;
+  streamCacheFile: string;
 };

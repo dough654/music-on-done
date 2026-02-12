@@ -94,23 +94,54 @@ All configuration is through environment variables. Only the playlist URL is req
 | `YOUTUBE_PLAYLIST_URL` | *(required)* | YouTube or YouTube Music playlist URL |
 | `MUSIC_ON_DONE_MIN_DURATION` | `5` | Minimum clip length in seconds |
 | `MUSIC_ON_DONE_MAX_DURATION` | `10` | Maximum clip length in seconds |
+| `MUSIC_ON_DONE_VOLUME` | `75` | Playback volume (0–100) |
 | `MUSIC_ON_DONE_CACHE_TTL` | `60` | How long to cache playlist metadata (minutes) |
 
 Each notification picks a random duration between min and max, a random track, and a random starting point within that track. Clips end with a 2-second fade-out.
 
+## Per-Project Playlists
+
+Different Claude Code projects can play different music. When Claude Code fires a hook, it sets `CLAUDE_PROJECT_DIR` to the project path. `music-on-done` looks this up in a config file and applies any per-project overrides.
+
+Create `~/.config/music-on-done/projects.json`:
+
+```json
+{
+  "/home/doug/dev/project-a": {
+    "playlistUrl": "https://music.youtube.com/playlist?list=PLrhcp..."
+  },
+  "/home/doug/dev/project-b": {
+    "playlistUrl": "https://music.youtube.com/playlist?list=PLnas...",
+    "volume": 50
+  }
+}
+```
+
+Each entry maps a project directory to config overrides. All fields are optional — anything not specified falls back to the environment variable defaults. Available override fields:
+
+| Field | Description |
+|---|---|
+| `playlistUrl` | Playlist URL for this project |
+| `minDuration` | Minimum clip length in seconds |
+| `maxDuration` | Maximum clip length in seconds |
+| `volume` | Playback volume (0–100) |
+| `cacheTtlMinutes` | Playlist cache TTL in minutes |
+
+If `YOUTUBE_PLAYLIST_URL` is not set globally, you can still use `music-on-done` by configuring a playlist URL per project in this file.
+
 ## How It Works
 
 1. Claude Code fires a notification (task done, permission needed, etc.)
-2. The hook reads your playlist URL from `YOUTUBE_PLAYLIST_URL`
-3. Playlist metadata is fetched via `yt-dlp` and cached to `~/.cache/music-on-done/playlist.json`
+2. The hook reads your playlist URL from `YOUTUBE_PLAYLIST_URL` (or per-project config)
+3. Playlist metadata is fetched via `yt-dlp` and cached to `~/.cache/music-on-done/playlist-<hash>.json`
 4. A random track is selected — if a pre-resolved stream URL is cached, playback is near-instant; otherwise `mpv` resolves it on the fly (slower, ~5-10s)
 5. A clip is played via `mpv` (audio only, no video window) with a fade-out at the end
 6. While the clip plays, stream URLs for up to 5 tracks are pre-resolved in the background for next time
 
-The playlist cache avoids hitting YouTube on every notification. It auto-refreshes after the TTL expires (default: 60 minutes). Stream URLs are cached separately with a 5-hour TTL (YouTube CDN URLs expire after ~6 hours). If you update your playlist, you can force a refresh by deleting the cache:
+The playlist cache avoids hitting YouTube on every notification. It auto-refreshes after the TTL expires (default: 60 minutes). Stream URLs are cached separately with a 5-hour TTL (YouTube CDN URLs expire after ~6 hours). Cache files are namespaced by playlist URL, so different playlists don't interfere with each other. If you update your playlist, you can force a refresh by deleting all cache files:
 
 ```bash
-rm ~/.cache/music-on-done/playlist.json
+rm ~/.cache/music-on-done/*.json
 ```
 
 ## Troubleshooting
@@ -129,9 +160,14 @@ rm ~/.cache/music-on-done/playlist.json
 The very first run (or after clearing the stream cache) will be slower (~5-10s) because `mpv` needs to resolve the YouTube URL. Subsequent runs use pre-resolved stream URLs and should be near-instant.
 
 ### Wrong playlist / stale tracks
-- Delete the cache: `rm ~/.cache/music-on-done/playlist.json`
+- Delete all cache files: `rm ~/.cache/music-on-done/*.json`
 - Or lower the TTL: `export MUSIC_ON_DONE_CACHE_TTL=5`
-- To clear cached stream URLs: `rm ~/.cache/music-on-done/streams.json`
+
+### Upgrading from a previous version
+If you previously used `music-on-done`, old cache files (`playlist.json`, `streams.json`) are now orphaned — cache files are now namespaced by playlist URL hash (e.g., `playlist-a1b2c3d4.json`). Clean up with:
+```bash
+rm ~/.cache/music-on-done/playlist.json ~/.cache/music-on-done/streams.json
+```
 
 ## License
 

@@ -31,16 +31,23 @@ const FADE_OUT_SECONDS = 2;
 /**
  * Builds the mpv argument array for playing a clip with a fade-out.
  */
-export const buildMpvArgs = (
-  trackUrl: string,
-  startSeconds: number,
-  durationSeconds: number
-): string[] => {
+export const buildMpvArgs = ({
+  trackUrl,
+  startSeconds,
+  durationSeconds,
+  volume,
+}: {
+  trackUrl: string;
+  startSeconds: number;
+  durationSeconds: number;
+  volume: number;
+}): string[] => {
   const fadeStart = Math.max(startSeconds, startSeconds + durationSeconds - FADE_OUT_SECONDS);
 
   return [
     "--no-video",
     "--really-quiet",
+    `--volume=${volume}`,
     `--start=${startSeconds}`,
     `--length=${durationSeconds}`,
     `--af=lavfi=[afade=t=out:st=${fadeStart}:d=${FADE_OUT_SECONDS}]`,
@@ -52,11 +59,17 @@ export const buildMpvArgs = (
  * Plays an audio clip of a track using mpv.
  * Spawns mpv via execFile (no shell) with the given URL, start offset, and duration.
  */
-export const playClip = async (
-  trackUrl: string,
-  startSeconds: number,
-  durationSeconds: number
-): Promise<void> => {
-  const args = buildMpvArgs(trackUrl, startSeconds, durationSeconds);
+export const playClip = async ({
+  trackUrl,
+  startSeconds,
+  durationSeconds,
+  volume,
+}: {
+  trackUrl: string;
+  startSeconds: number;
+  durationSeconds: number;
+  volume: number;
+}): Promise<void> => {
+  const args = buildMpvArgs({ trackUrl, startSeconds, durationSeconds, volume });
   await execFileAsync("mpv", args, { timeout: (durationSeconds + 30) * 1000 });
 };

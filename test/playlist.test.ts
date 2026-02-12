@@ -8,6 +8,7 @@ describe("isCacheValid", () => {
     minDuration: 5,
     maxDuration: 10,
     cacheTtlMinutes: 60,
+    volume: 75,
   };
 
   it("returns true for fresh cache with matching URL", () => {

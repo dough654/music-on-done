@@ -2,9 +2,11 @@
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { loadConfig } from "./config.js";
+import { getCachePaths } from "./cache-path.js";
+import { loadConfig, validateConfig } from "./config.js";
 import { getCachedOrFetchPlaylist, pickRandomTrack } from "./playlist.js";
 import { getRandomDuration, pickRandomStartOffset, playClip } from "./player.js";
+import { resolveEffectiveConfig } from "./project-config.js";
 import {
   pickTrackWithCachedStream,
   readStreamCache,
@@ -29,7 +31,8 @@ const commandExists = async (command: string): Promise<boolean> => {
 };
 
 /**
- * Main entry point. Loads config, fetches playlist, picks a random track, and plays a clip.
+ * Main entry point. Loads config, resolves per-project overrides, fetches playlist,
+ * picks a random track, and plays a clip.
  * Uses pre-resolved stream URLs when available for near-instant playback.
  * Exits silently on any error — a notification hook should never disrupt the workflow.
  */
@@ -46,10 +49,14 @@ const main = async (): Promise<void> => {
     process.exit(1);
   }
 
-  const config = loadConfig();
-  const entries = await getCachedOrFetchPlaylist(config);
+  const baseConfig = loadConfig();
+  const config = await resolveEffectiveConfig(baseConfig);
+  validateConfig(config);
 
-  const streamCache = await readStreamCache();
+  const cachePaths = getCachePaths(config.playlistUrl);
+  const entries = await getCachedOrFetchPlaylist(config, cachePaths.playlistCacheFile);
+
+  const streamCache = await readStreamCache(cachePaths.streamCacheFile);
   const validCache = streamCache?.playlistUrl === config.playlistUrl
     ? streamCache
     : { entries: [], playlistUrl: config.playlistUrl };
@@ -70,11 +77,11 @@ const main = async (): Promise<void> => {
       currentCache: validCache,
       playlistUrl: config.playlistUrl,
     });
-    await writeStreamCache(updated);
+    await writeStreamCache(cachePaths.streamCacheFile, updated);
   };
 
   await Promise.all([
-    playClip(trackUrl, startOffset, clipDuration),
+    playClip({ trackUrl, startSeconds: startOffset, durationSeconds: clipDuration, volume: config.volume }),
     replenishAndSave().catch(() => {}),
   ]);
 };

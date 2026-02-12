@@ -1,14 +1,10 @@
 import { execFile } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname } from "node:path";
 import { promisify } from "node:util";
 import type { Config, PlaylistCache, PlaylistEntry } from "./types.js";
 
 const execFileAsync = promisify(execFile);
-
-const CACHE_DIR = join(homedir(), ".cache", "music-on-done");
-const CACHE_FILE = join(CACHE_DIR, "playlist.json");
 
 /**
  * Fetches playlist metadata from YouTube via yt-dlp.
@@ -45,9 +41,11 @@ export const fetchPlaylist = async (
 /**
  * Reads the cached playlist from disk. Returns null if cache doesn't exist or is unparseable.
  */
-export const readCache = async (): Promise<PlaylistCache | null> => {
+export const readCache = async (
+  cacheFile: string
+): Promise<PlaylistCache | null> => {
   try {
-    const raw = await readFile(CACHE_FILE, "utf-8");
+    const raw = await readFile(cacheFile, "utf-8");
     return JSON.parse(raw) as PlaylistCache;
   } catch {
     return null;
@@ -57,9 +55,12 @@ export const readCache = async (): Promise<PlaylistCache | null> => {
 /**
  * Writes playlist data to the cache file.
  */
-export const writeCache = async (cache: PlaylistCache): Promise<void> => {
-  await mkdir(CACHE_DIR, { recursive: true });
-  await writeFile(CACHE_FILE, JSON.stringify(cache, null, 2), "utf-8");
+export const writeCache = async (
+  cacheFile: string,
+  cache: PlaylistCache
+): Promise<void> => {
+  await mkdir(dirname(cacheFile), { recursive: true });
+  await writeFile(cacheFile, JSON.stringify(cache, null, 2), "utf-8");
 };
 
 /**
@@ -81,9 +82,10 @@ export const isCacheValid = (
  * Returns cached playlist entries if valid, otherwise fetches fresh data and updates the cache.
  */
 export const getCachedOrFetchPlaylist = async (
-  config: Config
+  config: Config,
+  cacheFile: string
 ): Promise<PlaylistEntry[]> => {
-  const cache = await readCache();
+  const cache = await readCache(cacheFile);
 
   if (cache && isCacheValid(cache, config)) {
     return cache.entries;
@@ -91,7 +93,7 @@ export const getCachedOrFetchPlaylist = async (
 
   const entries = await fetchPlaylist(config.playlistUrl);
 
-  await writeCache({
+  await writeCache(cacheFile, {
     entries,
     fetchedAt: Date.now(),
     playlistUrl: config.playlistUrl,

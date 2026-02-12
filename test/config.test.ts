@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { loadConfig, parsePositiveInt } from "../src/config.js";
+import { loadConfig, parsePositiveInt, validateConfig } from "../src/config.js";
+import type { Config } from "../src/types.js";
 
 describe("parsePositiveInt", () => {
   it("returns default for undefined", () => {
@@ -42,9 +43,10 @@ describe("loadConfig", () => {
     process.env = originalEnv;
   });
 
-  it("throws when YOUTUBE_PLAYLIST_URL is missing", () => {
+  it("returns empty playlistUrl when YOUTUBE_PLAYLIST_URL is missing", () => {
     delete process.env.YOUTUBE_PLAYLIST_URL;
-    expect(() => loadConfig()).toThrow("YOUTUBE_PLAYLIST_URL");
+    const config = loadConfig();
+    expect(config.playlistUrl).toBe("");
   });
 
   it("loads config with defaults", () => {
@@ -55,6 +57,7 @@ describe("loadConfig", () => {
     expect(config.minDuration).toBe(5);
     expect(config.maxDuration).toBe(10);
     expect(config.cacheTtlMinutes).toBe(60);
+    expect(config.volume).toBe(75);
   });
 
   it("loads custom durations from env", () => {
@@ -85,5 +88,47 @@ describe("loadConfig", () => {
     const config = loadConfig();
     expect(config.minDuration).toBe(5);
     expect(config.maxDuration).toBe(10);
+  });
+
+  it("loads custom volume from env", () => {
+    process.env.YOUTUBE_PLAYLIST_URL = "https://youtube.com/playlist?list=PLtest";
+    process.env.MUSIC_ON_DONE_VOLUME = "40";
+
+    const config = loadConfig();
+    expect(config.volume).toBe(40);
+  });
+
+  it("clamps volume above 100 to 100", () => {
+    process.env.YOUTUBE_PLAYLIST_URL = "https://youtube.com/playlist?list=PLtest";
+    process.env.MUSIC_ON_DONE_VOLUME = "150";
+
+    const config = loadConfig();
+    expect(config.volume).toBe(100);
+  });
+});
+
+describe("validateConfig", () => {
+  it("throws when playlistUrl is empty", () => {
+    const config: Config = {
+      playlistUrl: "",
+      minDuration: 5,
+      maxDuration: 10,
+      cacheTtlMinutes: 60,
+      volume: 75,
+    };
+
+    expect(() => validateConfig(config)).toThrow("No playlist URL configured");
+  });
+
+  it("passes when playlistUrl is set", () => {
+    const config: Config = {
+      playlistUrl: "https://youtube.com/playlist?list=PLtest",
+      minDuration: 5,
+      maxDuration: 10,
+      cacheTtlMinutes: 60,
+      volume: 75,
+    };
+
+    expect(() => validateConfig(config)).not.toThrow();
   });
 });

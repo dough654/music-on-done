@@ -2,16 +2,12 @@ import type { Config } from "./types.js";
 
 /**
  * Loads configuration from environment variables.
- * Throws if required YOUTUBE_PLAYLIST_URL is missing.
+ * The playlist URL defaults to an empty string if not set — it can be
+ * supplied later via per-project config. Call validateConfig() after
+ * all merging is done to ensure a playlist URL exists.
  */
 export const loadConfig = (): Config => {
-  const playlistUrl = process.env.YOUTUBE_PLAYLIST_URL;
-  if (!playlistUrl) {
-    throw new Error(
-      "YOUTUBE_PLAYLIST_URL environment variable is required. " +
-        "Set it to a YouTube Music or YouTube playlist URL."
-    );
-  }
+  const playlistUrl = process.env.YOUTUBE_PLAYLIST_URL ?? "";
 
   const minDuration = parsePositiveInt(
     process.env.MUSIC_ON_DONE_MIN_DURATION,
@@ -26,13 +22,32 @@ export const loadConfig = (): Config => {
     60
   );
 
+  const rawVolume = parsePositiveInt(
+    process.env.MUSIC_ON_DONE_VOLUME,
+    75
+  );
+  const volume = Math.min(rawVolume, 100);
+
   if (minDuration > maxDuration) {
     throw new Error(
       `MUSIC_ON_DONE_MIN_DURATION (${minDuration}) must be <= MUSIC_ON_DONE_MAX_DURATION (${maxDuration})`
     );
   }
 
-  return { playlistUrl, minDuration, maxDuration, cacheTtlMinutes };
+  return { playlistUrl, minDuration, maxDuration, cacheTtlMinutes, volume };
+};
+
+/**
+ * Validates that the final config has all required fields.
+ * Call this after merging per-project overrides.
+ */
+export const validateConfig = (config: Config): void => {
+  if (!config.playlistUrl) {
+    throw new Error(
+      "No playlist URL configured. Set YOUTUBE_PLAYLIST_URL in your environment " +
+        "or add an entry in ~/.config/music-on-done/projects.json"
+    );
+  }
 };
 
 /**

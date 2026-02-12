@@ -1,14 +1,10 @@
 import { execFile } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname } from "node:path";
 import { promisify } from "node:util";
 import type { PlaylistEntry, StreamCache, StreamCacheEntry } from "./types.js";
 
 const execFileAsync = promisify(execFile);
-
-const CACHE_DIR = join(homedir(), ".cache", "music-on-done");
-const STREAM_CACHE_FILE = join(CACHE_DIR, "streams.json");
 
 export const STREAM_TTL_MINUTES = 300;
 export const STREAM_POOL_TARGET = 5;
@@ -16,9 +12,11 @@ export const STREAM_POOL_TARGET = 5;
 /**
  * Reads the stream cache from disk. Returns null if missing or unparseable.
  */
-export const readStreamCache = async (): Promise<StreamCache | null> => {
+export const readStreamCache = async (
+  cacheFile: string
+): Promise<StreamCache | null> => {
   try {
-    const raw = await readFile(STREAM_CACHE_FILE, "utf-8");
+    const raw = await readFile(cacheFile, "utf-8");
     return JSON.parse(raw) as StreamCache;
   } catch {
     return null;
@@ -28,9 +26,12 @@ export const readStreamCache = async (): Promise<StreamCache | null> => {
 /**
  * Writes the stream cache to disk.
  */
-export const writeStreamCache = async (cache: StreamCache): Promise<void> => {
-  await mkdir(CACHE_DIR, { recursive: true });
-  await writeFile(STREAM_CACHE_FILE, JSON.stringify(cache, null, 2), "utf-8");
+export const writeStreamCache = async (
+  cacheFile: string,
+  cache: StreamCache
+): Promise<void> => {
+  await mkdir(dirname(cacheFile), { recursive: true });
+  await writeFile(cacheFile, JSON.stringify(cache, null, 2), "utf-8");
 };
 
 /**
