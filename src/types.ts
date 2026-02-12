@@ -17,3 +17,15 @@ export type Config = {
   maxDuration: number;
   cacheTtlMinutes: number;
 };
+
+export type StreamCacheEntry = {
+  trackId: string;
+  trackUrl: string;
+  streamUrl: string;
+  resolvedAt: number;
+};
+
+export type StreamCache = {
+  entries: StreamCacheEntry[];
+  playlistUrl: string;
+};

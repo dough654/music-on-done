@@ -5,6 +5,12 @@ import { promisify } from "node:util";
 import { loadConfig } from "./config.js";
 import { getCachedOrFetchPlaylist, pickRandomTrack } from "./playlist.js";
 import { getRandomDuration, pickRandomStartOffset, playClip } from "./player.js";
+import {
+  pickTrackWithCachedStream,
+  readStreamCache,
+  replenishStreamPool,
+  writeStreamCache,
+} from "./stream-cache.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -24,6 +30,7 @@ const commandExists = async (command: string): Promise<boolean> => {
 
 /**
  * Main entry point. Loads config, fetches playlist, picks a random track, and plays a clip.
+ * Uses pre-resolved stream URLs when available for near-instant playback.
  * Exits silently on any error — a notification hook should never disrupt the workflow.
  */
 const main = async (): Promise<void> => {
@@ -41,11 +48,35 @@ const main = async (): Promise<void> => {
 
   const config = loadConfig();
   const entries = await getCachedOrFetchPlaylist(config);
-  const track = pickRandomTrack(entries);
+
+  const streamCache = await readStreamCache();
+  const validCache = streamCache?.playlistUrl === config.playlistUrl
+    ? streamCache
+    : { entries: [], playlistUrl: config.playlistUrl };
+
+  const cached = pickTrackWithCachedStream({
+    playlistEntries: entries,
+    streamCache: validCache,
+  });
+
+  const track = cached ? cached.track : pickRandomTrack(entries);
+  const trackUrl = cached ? cached.stream.streamUrl : track.url;
   const clipDuration = getRandomDuration(config.minDuration, config.maxDuration);
   const startOffset = pickRandomStartOffset(track.duration, clipDuration);
 
-  await playClip(track.url, startOffset, clipDuration);
+  const replenishAndSave = async (): Promise<void> => {
+    const updated = await replenishStreamPool({
+      playlistEntries: entries,
+      currentCache: validCache,
+      playlistUrl: config.playlistUrl,
+    });
+    await writeStreamCache(updated);
+  };
+
+  await Promise.all([
+    playClip(trackUrl, startOffset, clipDuration),
+    replenishAndSave().catch(() => {}),
+  ]);
 };
 
 main().catch(() => {

@@ -103,10 +103,11 @@ Each notification picks a random duration between min and max, a random track, a
 1. Claude Code fires a notification (task done, permission needed, etc.)
 2. The hook reads your playlist URL from `YOUTUBE_PLAYLIST_URL`
 3. Playlist metadata is fetched via `yt-dlp` and cached to `~/.cache/music-on-done/playlist.json`
-4. A random track and start offset are selected
+4. A random track is selected — if a pre-resolved stream URL is cached, playback is near-instant; otherwise `mpv` resolves it on the fly (slower, ~5-10s)
 5. A clip is played via `mpv` (audio only, no video window) with a fade-out at the end
+6. While the clip plays, stream URLs for up to 5 tracks are pre-resolved in the background for next time
 
-The playlist cache avoids hitting YouTube on every notification. It auto-refreshes after the TTL expires (default: 60 minutes). If you update your playlist, you can force a refresh by deleting the cache:
+The playlist cache avoids hitting YouTube on every notification. It auto-refreshes after the TTL expires (default: 60 minutes). Stream URLs are cached separately with a 5-hour TTL (YouTube CDN URLs expire after ~6 hours). If you update your playlist, you can force a refresh by deleting the cache:
 
 ```bash
 rm ~/.cache/music-on-done/playlist.json
@@ -124,9 +125,13 @@ rm ~/.cache/music-on-done/playlist.json
 - Check that `music-on-done` is on your PATH: `which music-on-done`
 - Test manually by running `music-on-done` from your terminal
 
+### First run is slow
+The very first run (or after clearing the stream cache) will be slower (~5-10s) because `mpv` needs to resolve the YouTube URL. Subsequent runs use pre-resolved stream URLs and should be near-instant.
+
 ### Wrong playlist / stale tracks
 - Delete the cache: `rm ~/.cache/music-on-done/playlist.json`
 - Or lower the TTL: `export MUSIC_ON_DONE_CACHE_TTL=5`
+- To clear cached stream URLs: `rm ~/.cache/music-on-done/streams.json`
 
 ## License
 
