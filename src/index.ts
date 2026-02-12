@@ -33,10 +33,21 @@ const commandExists = async (command: string): Promise<boolean> => {
 };
 
 /**
- * Returns a promise that resolves after the given milliseconds.
+ * Returns a promise that resolves after the given milliseconds,
+ * or immediately if the AbortSignal fires.
  */
-const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
+  new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(timer);
+      resolve();
+    }, { once: true });
+  });
 
 /**
  * Main entry point. Loads config, resolves per-project overrides, fetches playlist,
@@ -81,9 +92,15 @@ const main = async (): Promise<void> => {
   process.on("SIGTERM", onSigterm);
 
   try {
-    // Wait for the configured delay (skip if 0)
+    // Wait for the configured delay (skip if 0).
+    // The signal lets SIGTERM cut the sleep short instead of waiting the full duration.
     if (config.delay > 0) {
-      await sleep(config.delay * 1000);
+      await sleep(config.delay * 1000, controller.signal);
+    }
+
+    // If we were aborted (SIGTERM from --cancel), bail out immediately.
+    if (controller.signal.aborted) {
+      return;
     }
 
     // After the delay, check that our PID is still in the file.
