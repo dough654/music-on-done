@@ -94,10 +94,10 @@ The `Notification` hook triggers playback (after a configurable delay). The `Use
 ### 3. Test it
 
 ```bash
-music-on-done
+MUSIC_ON_DONE_DELAY=0 music-on-done
 ```
 
-You should hear a random clip from your playlist. If you just installed the env var, open a new terminal first (or `source ~/.zshrc`).
+You should hear a random clip from your playlist. If you just installed the env var, open a new terminal first (or `source ~/.zshrc`). The `DELAY=0` skips the default 15-second wait so you get immediate feedback.
 
 ## Configuration
 
@@ -150,11 +150,11 @@ If `YOUTUBE_PLAYLIST_URL` is not set globally, you can still use `music-on-done`
 ## How It Works
 
 1. Claude Code fires a notification (task done, permission needed, etc.)
-2. `music-on-done` writes its PID to `~/.cache/music-on-done/pending.pid` and waits for the configured delay (default: 15 seconds)
-3. If a new notification arrives during the delay, the new instance overwrites the PID file — only the last one will play
-4. If you submit a prompt (`music-on-done --cancel`), the pending instance is killed via SIGTERM
-5. After the delay, the hook reads your playlist URL from `YOUTUBE_PLAYLIST_URL` (or per-project config)
-6. Playlist metadata is fetched via `yt-dlp` and cached to `~/.cache/music-on-done/playlist-<hash>.json`
+2. The hook reads your playlist URL from `YOUTUBE_PLAYLIST_URL` (or per-project config)
+3. `music-on-done` writes its PID to `~/.cache/music-on-done/pending.pid` and waits for the configured delay (default: 15 seconds)
+4. If a new notification arrives during the delay, the new instance overwrites the PID file — only the last one will play
+5. If you submit a prompt (`music-on-done --cancel`), the pending instance is killed via SIGTERM
+6. After the delay, playlist metadata is fetched via `yt-dlp` and cached to `~/.cache/music-on-done/playlist-<hash>.json`
 7. A random track is selected — if a pre-resolved stream URL is cached, playback is near-instant; otherwise `mpv` resolves it on the fly (slower, ~5-10s)
 8. A clip is played via `mpv` (audio only, no video window) with a fade-out at the end
 9. While the clip plays, stream URLs for up to 5 tracks are pre-resolved in the background for next time
