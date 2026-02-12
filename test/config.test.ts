@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { loadConfig, parsePositiveInt, validateConfig } from "../src/config.js";
+import { loadConfig, parsePositiveInt, parseNonNegativeInt, validateConfig } from "../src/config.js";
 import type { Config } from "../src/types.js";
 
 describe("parsePositiveInt", () => {
@@ -32,6 +32,32 @@ describe("parsePositiveInt", () => {
   });
 });
 
+describe("parseNonNegativeInt", () => {
+  it("returns default for undefined", () => {
+    expect(parseNonNegativeInt(undefined, 42)).toBe(42);
+  });
+
+  it("returns default for empty string", () => {
+    expect(parseNonNegativeInt("", 42)).toBe(42);
+  });
+
+  it("returns default for non-numeric string", () => {
+    expect(parseNonNegativeInt("abc", 42)).toBe(42);
+  });
+
+  it("returns default for negative number", () => {
+    expect(parseNonNegativeInt("-5", 42)).toBe(42);
+  });
+
+  it("accepts zero as a valid value", () => {
+    expect(parseNonNegativeInt("0", 42)).toBe(0);
+  });
+
+  it("parses valid positive integer", () => {
+    expect(parseNonNegativeInt("10", 42)).toBe(10);
+  });
+});
+
 describe("loadConfig", () => {
   const originalEnv = { ...process.env };
 
@@ -51,6 +77,11 @@ describe("loadConfig", () => {
 
   it("loads config with defaults", () => {
     process.env.YOUTUBE_PLAYLIST_URL = "https://youtube.com/playlist?list=PLtest";
+    delete process.env.MUSIC_ON_DONE_MIN_DURATION;
+    delete process.env.MUSIC_ON_DONE_MAX_DURATION;
+    delete process.env.MUSIC_ON_DONE_CACHE_TTL;
+    delete process.env.MUSIC_ON_DONE_VOLUME;
+    delete process.env.MUSIC_ON_DONE_DELAY;
 
     const config = loadConfig();
     expect(config.playlistUrl).toBe("https://youtube.com/playlist?list=PLtest");
@@ -58,6 +89,7 @@ describe("loadConfig", () => {
     expect(config.maxDuration).toBe(10);
     expect(config.cacheTtlMinutes).toBe(60);
     expect(config.volume).toBe(75);
+    expect(config.delay).toBe(15);
   });
 
   it("loads custom durations from env", () => {
@@ -105,6 +137,22 @@ describe("loadConfig", () => {
     const config = loadConfig();
     expect(config.volume).toBe(100);
   });
+
+  it("parses MUSIC_ON_DONE_DELAY from env", () => {
+    process.env.YOUTUBE_PLAYLIST_URL = "https://youtube.com/playlist?list=PLtest";
+    process.env.MUSIC_ON_DONE_DELAY = "30";
+
+    const config = loadConfig();
+    expect(config.delay).toBe(30);
+  });
+
+  it("accepts delay of 0 (no delay)", () => {
+    process.env.YOUTUBE_PLAYLIST_URL = "https://youtube.com/playlist?list=PLtest";
+    process.env.MUSIC_ON_DONE_DELAY = "0";
+
+    const config = loadConfig();
+    expect(config.delay).toBe(0);
+  });
 });
 
 describe("validateConfig", () => {
@@ -115,6 +163,7 @@ describe("validateConfig", () => {
       maxDuration: 10,
       cacheTtlMinutes: 60,
       volume: 75,
+      delay: 15,
     };
 
     expect(() => validateConfig(config)).toThrow("No playlist URL configured");
@@ -127,6 +176,7 @@ describe("validateConfig", () => {
       maxDuration: 10,
       cacheTtlMinutes: 60,
       volume: 75,
+      delay: 15,
     };
 
     expect(() => validateConfig(config)).not.toThrow();

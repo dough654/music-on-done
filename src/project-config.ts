@@ -69,6 +69,7 @@ export const mergeProjectConfig = (
     maxDuration: overrides.maxDuration ?? baseConfig.maxDuration,
     cacheTtlMinutes: overrides.cacheTtlMinutes ?? baseConfig.cacheTtlMinutes,
     volume: Math.min(overrides.volume ?? baseConfig.volume, 100),
+    delay: overrides.delay ?? baseConfig.delay,
   };
 
   if (merged.minDuration > merged.maxDuration) {

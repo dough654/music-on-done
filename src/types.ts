@@ -17,6 +17,7 @@ export type Config = {
   maxDuration: number;
   cacheTtlMinutes: number;
   volume: number;
+  delay: number;
 };
 
 export type StreamCacheEntry = {
@@ -37,6 +38,7 @@ export type ProjectConfigOverrides = {
   maxDuration?: number;
   cacheTtlMinutes?: number;
   volume?: number;
+  delay?: number;
 };
 
 export type ProjectsConfigFile = Record<string, ProjectConfigOverrides>;

@@ -58,18 +58,21 @@ export const buildMpvArgs = ({
 /**
  * Plays an audio clip of a track using mpv.
  * Spawns mpv via execFile (no shell) with the given URL, start offset, and duration.
+ * Accepts an optional AbortSignal to cancel playback.
  */
 export const playClip = async ({
   trackUrl,
   startSeconds,
   durationSeconds,
   volume,
+  signal,
 }: {
   trackUrl: string;
   startSeconds: number;
   durationSeconds: number;
   volume: number;
+  signal?: AbortSignal;
 }): Promise<void> => {
   const args = buildMpvArgs({ trackUrl, startSeconds, durationSeconds, volume });
-  await execFileAsync("mpv", args, { timeout: (durationSeconds + 30) * 1000 });
+  await execFileAsync("mpv", args, { timeout: (durationSeconds + 30) * 1000, signal });
 };

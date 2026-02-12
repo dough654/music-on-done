@@ -15,6 +15,7 @@ const baseConfig: Config = {
   maxDuration: 10,
   cacheTtlMinutes: 60,
   volume: 75,
+  delay: 15,
 };
 
 describe("mergeProjectConfig", () => {
@@ -37,6 +38,7 @@ describe("mergeProjectConfig", () => {
       maxDuration: 20,
       cacheTtlMinutes: 120,
       volume: 50,
+      delay: 5,
     };
 
     const result = mergeProjectConfig(baseConfig, overrides);
@@ -46,7 +48,14 @@ describe("mergeProjectConfig", () => {
       maxDuration: 20,
       cacheTtlMinutes: 120,
       volume: 50,
+      delay: 5,
     });
+  });
+
+  it("overrides delay to 0", () => {
+    const overrides: ProjectConfigOverrides = { delay: 0 };
+    const result = mergeProjectConfig(baseConfig, overrides);
+    expect(result.delay).toBe(0);
   });
 
   it("returns base config when overrides are empty", () => {

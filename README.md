@@ -52,7 +52,7 @@ export YOUTUBE_PLAYLIST_URL="https://music.youtube.com/playlist?list=YOUR_PLAYLI
 
 Any public YouTube or YouTube Music playlist URL works.
 
-### 2. Add the Claude Code hook
+### 2. Add the Claude Code hooks
 
 Add this to your `~/.claude/settings.json`:
 
@@ -70,10 +70,24 @@ Add this to your `~/.claude/settings.json`:
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "music-on-done --cancel",
+            "async": true
+          }
+        ]
+      }
     ]
   }
 }
 ```
+
+The `Notification` hook triggers playback (after a configurable delay). The `UserPromptSubmit` hook cancels any pending or playing music when you submit a new prompt, so clips don't overlap when you're actively working.
 
 > **Important:** `async: true` is required — without it, Claude blocks until the clip finishes playing.
 
@@ -96,8 +110,11 @@ All configuration is through environment variables. Only the playlist URL is req
 | `MUSIC_ON_DONE_MAX_DURATION` | `10` | Maximum clip length in seconds |
 | `MUSIC_ON_DONE_VOLUME` | `75` | Playback volume (0–100) |
 | `MUSIC_ON_DONE_CACHE_TTL` | `60` | How long to cache playlist metadata (minutes) |
+| `MUSIC_ON_DONE_DELAY` | `15` | Seconds to wait before playing (0 = immediate) |
 
 Each notification picks a random duration between min and max, a random track, and a random starting point within that track. Clips end with a 2-second fade-out.
+
+The delay prevents overlapping clips when rapid-fire notifications arrive. Each new notification cancels the previous pending one, so only the last notification within the delay window actually plays.
 
 ## Per-Project Playlists
 
@@ -126,17 +143,21 @@ Each entry maps a project directory to config overrides. All fields are optional
 | `maxDuration` | Maximum clip length in seconds |
 | `volume` | Playback volume (0–100) |
 | `cacheTtlMinutes` | Playlist cache TTL in minutes |
+| `delay` | Seconds to wait before playing (0 = immediate) |
 
 If `YOUTUBE_PLAYLIST_URL` is not set globally, you can still use `music-on-done` by configuring a playlist URL per project in this file.
 
 ## How It Works
 
 1. Claude Code fires a notification (task done, permission needed, etc.)
-2. The hook reads your playlist URL from `YOUTUBE_PLAYLIST_URL` (or per-project config)
-3. Playlist metadata is fetched via `yt-dlp` and cached to `~/.cache/music-on-done/playlist-<hash>.json`
-4. A random track is selected — if a pre-resolved stream URL is cached, playback is near-instant; otherwise `mpv` resolves it on the fly (slower, ~5-10s)
-5. A clip is played via `mpv` (audio only, no video window) with a fade-out at the end
-6. While the clip plays, stream URLs for up to 5 tracks are pre-resolved in the background for next time
+2. `music-on-done` writes its PID to `~/.cache/music-on-done/pending.pid` and waits for the configured delay (default: 15 seconds)
+3. If a new notification arrives during the delay, the new instance overwrites the PID file — only the last one will play
+4. If you submit a prompt (`music-on-done --cancel`), the pending instance is killed via SIGTERM
+5. After the delay, the hook reads your playlist URL from `YOUTUBE_PLAYLIST_URL` (or per-project config)
+6. Playlist metadata is fetched via `yt-dlp` and cached to `~/.cache/music-on-done/playlist-<hash>.json`
+7. A random track is selected — if a pre-resolved stream URL is cached, playback is near-instant; otherwise `mpv` resolves it on the fly (slower, ~5-10s)
+8. A clip is played via `mpv` (audio only, no video window) with a fade-out at the end
+9. While the clip plays, stream URLs for up to 5 tracks are pre-resolved in the background for next time
 
 The playlist cache avoids hitting YouTube on every notification. It auto-refreshes after the TTL expires (default: 60 minutes). Stream URLs are cached separately with a 5-hour TTL (YouTube CDN URLs expire after ~6 hours). Cache files are namespaced by playlist URL, so different playlists don't interfere with each other. If you update your playlist, you can force a refresh by deleting all cache files:
 

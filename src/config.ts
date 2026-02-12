@@ -1,6 +1,44 @@
 import type { Config } from "./types.js";
 
 /**
+ * Parses an env var string as a positive integer, returning a default if unset or invalid.
+ */
+export const parsePositiveInt = (
+  value: string | undefined,
+  defaultValue: number
+): number => {
+  if (value === undefined || value === "") {
+    return defaultValue;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    return defaultValue;
+  }
+
+  return parsed;
+};
+
+/**
+ * Parses an env var string as a non-negative integer (0 is valid), returning a default if unset or invalid.
+ */
+export const parseNonNegativeInt = (
+  value: string | undefined,
+  defaultValue: number
+): number => {
+  if (value === undefined || value === "") {
+    return defaultValue;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed < 0) {
+    return defaultValue;
+  }
+
+  return parsed;
+};
+
+/**
  * Loads configuration from environment variables.
  * The playlist URL defaults to an empty string if not set — it can be
  * supplied later via per-project config. Call validateConfig() after
@@ -28,13 +66,18 @@ export const loadConfig = (): Config => {
   );
   const volume = Math.min(rawVolume, 100);
 
+  const delay = parseNonNegativeInt(
+    process.env.MUSIC_ON_DONE_DELAY,
+    15
+  );
+
   if (minDuration > maxDuration) {
     throw new Error(
       `MUSIC_ON_DONE_MIN_DURATION (${minDuration}) must be <= MUSIC_ON_DONE_MAX_DURATION (${maxDuration})`
     );
   }
 
-  return { playlistUrl, minDuration, maxDuration, cacheTtlMinutes, volume };
+  return { playlistUrl, minDuration, maxDuration, cacheTtlMinutes, volume, delay };
 };
 
 /**
@@ -48,23 +91,4 @@ export const validateConfig = (config: Config): void => {
         "or add an entry in ~/.config/music-on-done/projects.json"
     );
   }
-};
-
-/**
- * Parses an env var string as a positive integer, returning a default if unset or invalid.
- */
-export const parsePositiveInt = (
-  value: string | undefined,
-  defaultValue: number
-): number => {
-  if (value === undefined || value === "") {
-    return defaultValue;
-  }
-
-  const parsed = Number.parseInt(value, 10);
-  if (Number.isNaN(parsed) || parsed <= 0) {
-    return defaultValue;
-  }
-
-  return parsed;
 };
