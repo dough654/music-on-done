@@ -26,19 +26,24 @@ export const getRandomDuration = (min: number, max: number): number => {
   return min + Math.floor(Math.random() * (max - min + 1));
 };
 
+const FADE_OUT_SECONDS = 2;
+
 /**
- * Builds the mpv argument array for playing a clip.
+ * Builds the mpv argument array for playing a clip with a fade-out.
  */
 export const buildMpvArgs = (
   trackUrl: string,
   startSeconds: number,
   durationSeconds: number
 ): string[] => {
+  const fadeStart = Math.max(startSeconds, startSeconds + durationSeconds - FADE_OUT_SECONDS);
+
   return [
     "--no-video",
     "--really-quiet",
     `--start=${startSeconds}`,
     `--length=${durationSeconds}`,
+    `--af=lavfi=[afade=t=out:st=${fadeStart}:d=${FADE_OUT_SECONDS}]`,
     trackUrl,
   ];
 };

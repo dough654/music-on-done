@@ -51,19 +51,21 @@ describe("getRandomDuration", () => {
 });
 
 describe("buildMpvArgs", () => {
-  it("builds correct argument array", () => {
+  it("builds correct argument array with fade-out using absolute timestamps", () => {
     const args = buildMpvArgs("https://youtube.com/watch?v=abc", 30, 10);
 
+    // fade starts at absolute second 38 (30 + 10 - 2)
     expect(args).toEqual([
       "--no-video",
       "--really-quiet",
       "--start=30",
       "--length=10",
+      "--af=lavfi=[afade=t=out:st=38:d=2]",
       "https://youtube.com/watch?v=abc",
     ]);
   });
 
-  it("handles zero offset", () => {
+  it("handles zero offset with fade-out", () => {
     const args = buildMpvArgs("https://youtube.com/watch?v=xyz", 0, 5);
 
     expect(args).toEqual([
@@ -71,7 +73,14 @@ describe("buildMpvArgs", () => {
       "--really-quiet",
       "--start=0",
       "--length=5",
+      "--af=lavfi=[afade=t=out:st=3:d=2]",
       "https://youtube.com/watch?v=xyz",
     ]);
+  });
+
+  it("clamps fade start to startSeconds for very short clips", () => {
+    const args = buildMpvArgs("https://youtube.com/watch?v=short", 10, 1);
+
+    expect(args).toContain("--af=lavfi=[afade=t=out:st=10:d=2]");
   });
 });
