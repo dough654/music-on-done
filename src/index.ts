@@ -10,10 +10,12 @@ const execFileAsync = promisify(execFile);
 
 /**
  * Checks whether a command exists on the system PATH.
+ * Uses `where` on Windows, `which` everywhere else.
  */
 const commandExists = async (command: string): Promise<boolean> => {
+  const lookupCommand = process.platform === "win32" ? "where" : "which";
   try {
-    await execFileAsync("which", [command]);
+    await execFileAsync(lookupCommand, [command]);
     return true;
   } catch {
     return false;

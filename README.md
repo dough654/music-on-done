@@ -1,28 +1,38 @@
 # music-on-done
 
-A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) hook that plays a random 5-10 second clip from a YouTube Music playlist whenever Claude sends a notification (task complete, needs permission, etc.).
+A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) hook that plays a random clip from a YouTube Music playlist whenever Claude sends a notification (task complete, needs permission, etc.). Each clip fades out smoothly so it doesn't end abruptly.
 
 ## Prerequisites
 
-- **Node.js** 18+
-- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** — for fetching playlist metadata
-- **[mpv](https://mpv.io/)** — for audio playback
+You need three things installed:
 
-Install on Arch Linux:
+- **Node.js** 18+
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** — fetches playlist metadata
+- **[mpv](https://mpv.io/)** — plays the audio
+
+### Installing yt-dlp and mpv
+
+**Arch Linux:**
 ```bash
 sudo pacman -S yt-dlp mpv
 ```
 
-Install on macOS:
+**macOS:**
 ```bash
 brew install yt-dlp mpv
 ```
 
-Install on Ubuntu/Debian:
+**Ubuntu/Debian:**
 ```bash
 sudo apt install mpv
 pip install yt-dlp
 ```
+
+**Windows:**
+```powershell
+winget install yt-dlp mpv
+```
+Or use [Chocolatey](https://chocolatey.org/): `choco install yt-dlp mpv`
 
 ## Installation
 
@@ -30,23 +40,19 @@ pip install yt-dlp
 npm install -g music-on-done
 ```
 
-## Configuration
+## Setup
 
-Set the required environment variable in your shell profile (`.bashrc`, `.zshrc`, etc.):
+### 1. Set your playlist URL
+
+Add this to your shell profile (`.bashrc`, `.zshrc`, etc.):
 
 ```bash
 export YOUTUBE_PLAYLIST_URL="https://music.youtube.com/playlist?list=YOUR_PLAYLIST_ID"
 ```
 
-### Optional environment variables
+Any public YouTube or YouTube Music playlist URL works.
 
-| Variable | Default | Description |
-|---|---|---|
-| `MUSIC_ON_DONE_MIN_DURATION` | `5` | Minimum clip duration in seconds |
-| `MUSIC_ON_DONE_MAX_DURATION` | `10` | Maximum clip duration in seconds |
-| `MUSIC_ON_DONE_CACHE_TTL` | `60` | Playlist cache TTL in minutes |
-
-## Claude Code Hook Setup
+### 2. Add the Claude Code hook
 
 Add this to your `~/.claude/settings.json`:
 
@@ -69,20 +75,41 @@ Add this to your `~/.claude/settings.json`:
 }
 ```
 
-The `async: true` flag is critical — it runs the music in the background so it doesn't block Claude.
+> **Important:** `async: true` is required — without it, Claude blocks until the clip finishes playing.
+
+### 3. Test it
+
+```bash
+music-on-done
+```
+
+You should hear a random clip from your playlist. If you just installed the env var, open a new terminal first (or `source ~/.zshrc`).
+
+## Configuration
+
+All configuration is through environment variables. Only the playlist URL is required.
+
+| Variable | Default | Description |
+|---|---|---|
+| `YOUTUBE_PLAYLIST_URL` | *(required)* | YouTube or YouTube Music playlist URL |
+| `MUSIC_ON_DONE_MIN_DURATION` | `5` | Minimum clip length in seconds |
+| `MUSIC_ON_DONE_MAX_DURATION` | `10` | Maximum clip length in seconds |
+| `MUSIC_ON_DONE_CACHE_TTL` | `60` | How long to cache playlist metadata (minutes) |
+
+Each notification picks a random duration between min and max, a random track, and a random starting point within that track. Clips end with a 2-second fade-out.
 
 ## How It Works
 
-1. Claude Code triggers a notification (task done, permission needed, etc.)
-2. The hook loads your playlist URL from the environment
-3. Playlist metadata is fetched via `yt-dlp` (cached to `~/.cache/music-on-done/playlist.json`)
-4. A random track is selected
-5. A random 5-10 second clip is played via `mpv` (no video, audio only)
+1. Claude Code fires a notification (task done, permission needed, etc.)
+2. The hook reads your playlist URL from `YOUTUBE_PLAYLIST_URL`
+3. Playlist metadata is fetched via `yt-dlp` and cached to `~/.cache/music-on-done/playlist.json`
+4. A random track and start offset are selected
+5. A clip is played via `mpv` (audio only, no video window) with a fade-out at the end
 
-## Manual Testing
+The playlist cache avoids hitting YouTube on every notification. It auto-refreshes after the TTL expires (default: 60 minutes). If you update your playlist, you can force a refresh by deleting the cache:
 
 ```bash
-YOUTUBE_PLAYLIST_URL="https://music.youtube.com/playlist?list=YOUR_PLAYLIST_ID" music-on-done
+rm ~/.cache/music-on-done/playlist.json
 ```
 
 ## Troubleshooting
@@ -90,16 +117,17 @@ YOUTUBE_PLAYLIST_URL="https://music.youtube.com/playlist?list=YOUR_PLAYLIST_ID" 
 ### No sound plays
 - Check that `mpv` and `yt-dlp` are installed: `which mpv yt-dlp`
 - Verify your playlist URL works: `yt-dlp --flat-playlist -J "YOUR_URL" | head -c 500`
-- Check that `YOUTUBE_PLAYLIST_URL` is exported in your shell
-
-### Cache issues
-- Delete the cache: `rm ~/.cache/music-on-done/playlist.json`
-- The cache auto-refreshes after the TTL (default 60 minutes)
+- Make sure `YOUTUBE_PLAYLIST_URL` is exported (not just set): `echo $YOUTUBE_PLAYLIST_URL`
 
 ### Hook not firing
-- Verify hook config in `~/.claude/settings.json`
-- Test manually: run `music-on-done` from your terminal
+- Verify your hook config in `~/.claude/settings.json` — make sure the JSON is valid
+- Check that `music-on-done` is on your PATH: `which music-on-done`
+- Test manually by running `music-on-done` from your terminal
+
+### Wrong playlist / stale tracks
+- Delete the cache: `rm ~/.cache/music-on-done/playlist.json`
+- Or lower the TTL: `export MUSIC_ON_DONE_CACHE_TTL=5`
 
 ## License
 
-MIT
+[MIT](LICENSE)
